@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+
+# Large binary samples (don't commit GB-scale IQ)
+samples/*.bin
+samples/*.wav
+samples/*.iq
+samples/*.zip
+
+# Generated outputs
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.png
+*.csv
+snr_crc.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADS-B Live Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <span class="logo">✈</span>
+      <h1>ADS-B Live</h1>
+      <span class="mode-badge" id="mode-badge">--</span>
+    </div>
+    <div class="stats" id="stats-row">
+      <span class="stat"><span class="lbl">Ucak</span><b id="ac-count">0</b></span>
+      <span class="stat"><span class="lbl">Mesaj</span><b id="msg-count">0</b></span>
+      <span class="stat"><span class="lbl">Callsign</span><b id="cs-count">0</b></span>
+      <span class="stat"><span class="lbl">CRC ok</span><b id="crc-count">0</b></span>
+      <span class="stat"><span class="lbl">Pos</span><b id="pos-count">0</b></span>
+    </div>
+    <div class="progress" id="progress-wrap" style="display:none;">
+      <span id="progress-label">0.0 / 0.0 s</span>
+      <div class="bar"><div class="fill" id="progress-fill"></div></div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="filter-btn" title="Filtre">⚙</button>
+      <button class="icon-btn" id="heatmap-btn" title="Heatmap modu">☵</button>
+      <button class="icon-btn" id="dash-btn" title="Dashboard">▤</button>
+      <button class="icon-btn" id="theme-btn" title="Tema">◐</button>
+    </div>
+  </header>
+
+  <!-- HARITA -->
+  <div id="map"></div>
+
+  <!-- ALTITUDE LEGEND -->
+  <div class="legend" id="alt-legend">
+    <div class="legend-title">Altitude (ft)</div>
+    <div class="grad"></div>
+    <div class="legend-scale">
+      <span>0</span><span>10k</span><span>20k</span><span>30k</span><span>40k+</span>
+    </div>
+  </div>
+
+  <!-- LIST (sag panel) -->
+  <aside id="list">
+    <div class="list-head">
+      <input type="text" id="search-input" placeholder="ICAO / callsign ara...">
+      <span class="list-count" id="list-count">0</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th></th><th>ICAO</th><th>Callsign</th><th>Alt</th><th>Kt</th><th>Hdg</th>
+        </tr>
+      </thead>
+      <tbody id="ac-rows"></tbody>
+    </table>
+  </aside>
+
+  <!-- FILTER PANEL -->
+  <div id="filter-panel" class="floating-panel">
+    <button class="close" data-close="filter-panel">✕</button>
+    <h3>Filtreler</h3>
+    <div class="filter-group">
+      <label>Min altitude: <span id="alt-min-val">0</span> ft</label>
+      <input type="range" id="alt-min" min="0" max="45000" step="500" value="0">
+    </div>
+    <div class="filter-group">
+      <label>Max altitude: <span id="alt-max-val">45000</span> ft</label>
+      <input type="range" id="alt-max" min="0" max="45000" step="500" value="45000">
+    </div>
+    <div class="filter-group">
+      <label>Min speed: <span id="spd-min-val">0</span> kt</label>
+      <input type="range" id="spd-min" min="0" max="600" step="10" value="0">
+    </div>
+    <div class="filter-group">
+      <label>Ulke kodu (CSV, bos=hepsi):</label>
+      <input type="text" id="country-filter" placeholder="TR,GB,DE">
+    </div>
+    <div class="filter-group">
+      <label>Operator substring:</label>
+      <input type="text" id="op-filter" placeholder="Turkish, Ryanair...">
+    </div>
+    <div class="filter-group">
+      <label><input type="checkbox" id="hide-noPos"> Konumsuzlari gizle</label>
+      <label><input type="checkbox" id="hide-noCS"> Callsign'siz gizle</label>
+      <label><input type="checkbox" id="show-trails" checked> Track cizgileri</label>
+      <label><input type="checkbox" id="show-airports" checked> Havaalanlari</label>
+    </div>
+    <button class="btn primary" id="filter-reset">Sifirla</button>
+  </div>
+
+  <!-- DASHBOARD PANEL -->
+  <div id="dash-panel" class="floating-panel wide">
+    <button class="close" data-close="dash-panel">✕</button>
+    <h3>Dashboard</h3>
+    <div class="dash-grid">
+      <div class="dash-card">
+        <div class="dash-num" id="d-uniq">0</div>
+        <div class="dash-lbl">Toplam Unique Aircraft</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="d-active">0</div>
+        <div class="dash-lbl">Aktif (son 60sn)</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="d-airborne">0</div>
+        <div class="dash-lbl">Havada</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="d-surface">0</div>
+        <div class="dash-lbl">Yerde</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="d-fix1">0</div>
+        <div class="dash-lbl">1-bit duzeltme</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="d-fix2">0</div>
+        <div class="dash-lbl">2-bit duzeltme</div>
+      </div>
+    </div>
+    <h4>En aktif uçaklar</h4>
+    <div class="dash-list" id="dash-top"></div>
+    <h4>Ulke dağilimi</h4>
+    <div class="dash-list" id="dash-countries"></div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div id="detail">
+    <button class="close" id="detail-close">✕</button>
+    <div class="head">
+      <div>
+        <div class="cs" id="d-cs">--</div>
+        <div class="d-sub">
+          <span id="d-icao">------</span>
+          <span class="d-flag" id="d-flag"></span>
+          <span class="d-op" id="d-op"></span>
+        </div>
+      </div>
+      <div class="d-side">
+        <span class="d-ground-badge" id="d-ground"></span>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="field"><div class="lbl">Altitude</div><div class="val" id="d-alt">--</div></div>
+      <div class="field"><div class="lbl">Speed (GS)</div><div class="val" id="d-spd">--</div></div>
+      <div class="field"><div class="lbl">Heading</div><div class="val" id="d-hdg">--</div></div>
+      <div class="field"><div class="lbl">V/Rate</div><div class="val" id="d-vr">--</div></div>
+      <div class="field"><div class="lbl">Position</div><div class="val" id="d-pos">--</div></div>
+      <div class="field"><div class="lbl">Squawk</div><div class="val" id="d-sqk">--</div></div>
+      <div class="field"><div class="lbl">Category</div><div class="val" id="d-cat">--</div></div>
+      <div class="field"><div class="lbl">Messages</div><div class="val" id="d-msg">--</div></div>
+    </div>
+    <details class="commb-section">
+      <summary>Kokpit verisi (Comm-B)</summary>
+      <div class="grid">
+        <div class="field"><div class="lbl">MCP alt</div><div class="val" id="d-mcp">--</div></div>
+        <div class="field"><div class="lbl">IAS</div><div class="val" id="d-ias">--</div></div>
+        <div class="field"><div class="lbl">Mach</div><div class="val" id="d-mach">--</div></div>
+        <div class="field"><div class="lbl">Mag HDG</div><div class="val" id="d-mhdg">--</div></div>
+        <div class="field"><div class="lbl">Roll</div><div class="val" id="d-roll">--</div></div>
+        <div class="field"><div class="lbl">TAS</div><div class="val" id="d-tas">--</div></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- POLAR PLOT (small panel) -->
+  <canvas id="polar" width="200" height="200"></canvas>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
