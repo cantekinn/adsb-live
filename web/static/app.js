@@ -494,3 +494,58 @@ socket.on('aircraft_update', data => {
 });
 
 drawPolar();
+
+// ========== SOLAR TERMINATOR ==========
+// NOAA Solar Position formulu, basitlestirilmis
+function sunPosition(date) {
+  const rad = Math.PI / 180;
+  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const decl = 23.44 * Math.sin(rad * 360 * (dayOfYear - 81) / 365);
+  const B = rad * 360 * (dayOfYear - 81) / 365;
+  const eot = 9.87 * Math.sin(2*B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  const minutesSinceUTCNoon = (date.getUTCHours() - 12) * 60 + date.getUTCMinutes() + eot;
+  const solarLon = -(minutesSinceUTCNoon * 0.25);
+  return { lat: decl, lon: solarLon };
+}
+
+function terminatorPolygon(date, points=180) {
+  const sun = sunPosition(date);
+  const antiLat = -sun.lat;
+  const antiLon = sun.lon + 180;
+  const rad = Math.PI / 180;
+  const polyPts = [];
+  for (let i = 0; i <= points; i++) {
+    const ang = (i / points) * 2 * Math.PI;
+    const offsetLat = 90 * Math.cos(ang);
+    const offsetLon = 90 * Math.sin(ang) / Math.max(0.01, Math.cos(rad*offsetLat));
+    let lat = antiLat + offsetLat;
+    let lon = antiLon + offsetLon;
+    if (lat > 90) lat = 90; if (lat < -90) lat = -90;
+    while (lon > 180) lon -= 360;
+    while (lon < -180) lon += 360;
+    polyPts.push([lat, lon]);
+  }
+  return polyPts;
+}
+
+let terminatorLayer = null, sunMarker = null;
+
+function updateTerminator() {
+  const now = new Date();
+  const sun = sunPosition(now);
+  if (sunMarker) map.removeLayer(sunMarker);
+  sunMarker = L.marker([sun.lat, sun.lon], { icon: L.divIcon({
+    className: '',
+    html: '<div style="font-size:24px;text-shadow:0 0 8px #f59e0b">☀</div>',
+    iconSize: [24, 24], iconAnchor: [12, 12],
+  })}).addTo(map);
+  sunMarker.bindTooltip('☀ ' + sun.lat.toFixed(1) + '°, ' + sun.lon.toFixed(1) + '°',
+    { direction: 'top' });
+  const pts = terminatorPolygon(now);
+  if (terminatorLayer) map.removeLayer(terminatorLayer);
+  terminatorLayer = L.polyline(pts, {
+    color: '#fbbf24', weight: 1.5, opacity: 0.5, dashArray: '4,6'
+  }).addTo(map);
+}
+updateTerminator();
+setInterval(updateTerminator, 5 * 60 * 1000);
