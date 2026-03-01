@@ -12,6 +12,7 @@ let tileLayer = L.tileLayer(TILES.dark, { maxZoom: 18 }).addTo(map);
 // ---------- state ----------
 const markers = {};
 const trails = {};
+const kalman = {};   // ICAO -> {lat, lon, vLat, vLon, t}
 let selected = null;
 let allAircraft = [];
 let lastStats = {};
@@ -134,6 +135,51 @@ function passFilter(ac) {
 }
 
 // ---------- MARKERS ----------
+// Kalman 2D constant-velocity smoother (lat/lon konum + hiz)
+// Pozisyon update'leri ~5 sn arali geliyor; arada hizla extrapole et.
+function kalmanUpdate(icao, lat, lon, t) {
+  const k = kalman[icao];
+  if (!k) {
+    kalman[icao] = { lat, lon, vLat: 0, vLon: 0, t };
+    return;
+  }
+  const dt = Math.max(0.01, t - k.t);
+  // Yeni olcumden hiz hesabi
+  const measVLat = (lat - k.lat) / dt;
+  const measVLon = (lon - k.lon) / dt;
+  // Sanity: cok yuksek hiz -> reset
+  const dist = Math.hypot(lat - k.lat, lon - k.lon);
+  if (dist / dt > 0.5) {  // ~derece/sn, makul ustu
+    kalman[icao] = { lat, lon, vLat: 0, vLon: 0, t };
+    return;
+  }
+  // Alpha-beta filter (basit Kalman varyantı)
+  const alpha = 0.7, beta = 0.3;
+  k.lat += alpha * (lat - k.lat);
+  k.lon += alpha * (lon - k.lon);
+  k.vLat += beta * (measVLat - k.vLat) * dt;
+  k.vLon += beta * (measVLon - k.vLon) * dt;
+  k.t = t;
+}
+
+function kalmanExtrapolate(icao, now) {
+  const k = kalman[icao];
+  if (!k) return null;
+  const dt = now - k.t;
+  if (dt > 30) return null;  // 30 sn'den eskiyse extrapole etme
+  return [k.lat + k.vLat * dt, k.lon + k.vLon * dt];
+}
+
+// Her 250 ms'de marker'lari Kalman ile extrapole et (yumusak hareket)
+setInterval(() => {
+  if (heatMode || !allAircraft.length) return;
+  const now = Date.now() / 1000;
+  for (const icao in markers) {
+    const pos = kalmanExtrapolate(icao, now);
+    if (pos) markers[icao].setLatLng(pos);
+  }
+}, 250);
+
 function updateMarkers(aircraft) {
   if (heatMode) {
     // Heatmap modu: marker'lari gizle, heatmap goster
@@ -160,6 +206,8 @@ function updateMarkers(aircraft) {
     if (ac.lat == null || ac.lon == null) continue;
     const isSel = ac.icao === selected;
     const icon = planeIcon(ac, isSel);
+    // Kalman tracker
+    kalmanUpdate(ac.icao, ac.lat, ac.lon, Date.now() / 1000);
     if (markers[ac.icao]) {
       markers[ac.icao].setLatLng([ac.lat, ac.lon]).setIcon(icon);
     } else {
