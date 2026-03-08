@@ -12,7 +12,8 @@ let tileLayer = L.tileLayer(TILES.dark, { maxZoom: 18 }).addTo(map);
 // ---------- state ----------
 const markers = {};
 const trails = {};
-const kalman = {};   // ICAO -> {lat, lon, vLat, vLon, t}
+const kalman = {};
+const predictionLines = {};  // ICAO -> prediction polyline
 let selected = null;
 let allAircraft = [];
 let lastStats = {};
@@ -229,11 +230,25 @@ function updateMarkers(aircraft) {
     } else if (trails[ac.icao]) {
       map.removeLayer(trails[ac.icao]); delete trails[ac.icao];
     }
+    // Prediction line (sadece secili ucak icin)
+    if (isSel && ac.predicted_route && ac.predicted_route.length >= 2) {
+      if (predictionLines[ac.icao]) {
+        predictionLines[ac.icao].setLatLngs(ac.predicted_route);
+      } else {
+        predictionLines[ac.icao] = L.polyline(ac.predicted_route, {
+          color: '#f59e0b', weight: 2, opacity: 0.6, dashArray: '6,8'
+        }).addTo(map);
+      }
+    } else if (predictionLines[ac.icao]) {
+      map.removeLayer(predictionLines[ac.icao]);
+      delete predictionLines[ac.icao];
+    }
   }
   for (const icao in markers) {
     if (!seen.has(icao)) {
       map.removeLayer(markers[icao]); delete markers[icao];
       if (trails[icao]) { map.removeLayer(trails[icao]); delete trails[icao]; }
+      if (predictionLines[icao]) { map.removeLayer(predictionLines[icao]); delete predictionLines[icao]; }
       if (selected === icao) closeDetail();
     }
   }
@@ -309,6 +324,9 @@ function renderDetail(ac) {
   const groundBadge = document.getElementById('d-ground');
   groundBadge.classList.toggle('show', !!ac.on_ground);
   groundBadge.textContent = 'GROUND';
+  const holdBadge = document.getElementById('d-holding');
+  holdBadge.classList.toggle('show', !!ac.holding);
+  holdBadge.textContent = ac.holding ? `HOLDING ${ac.holding.turn?.toUpperCase()}` : 'HOLDING';
 
   setField('d-alt', ac.altitude != null ? ac.altitude.toLocaleString() : null, 'ft');
   setField('d-spd', ac.speed != null ? ac.speed.toFixed(0) : null, 'kt');
@@ -320,6 +338,8 @@ function renderDetail(ac) {
   setField('d-sqk', ac.squawk);
   setField('d-cat', CATEGORIES[ac.category] || null);
   setField('d-msg', ac.msg_count);
+  setField('d-wind', ac.wind ? `${ac.wind.wind_speed}kt ←${ac.wind.wind_from}°` : null);
+  setField('d-pattern', ac.holding ? `${ac.holding.pattern} (${ac.holding.turn}, ${ac.holding.total_nm}nm)` : null);
 
   setField('d-mcp', ac.mcp_alt != null ? ac.mcp_alt.toLocaleString() : null, 'ft');
   setField('d-ias', ac.ias, 'kt');

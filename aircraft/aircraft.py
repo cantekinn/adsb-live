@@ -77,6 +77,7 @@ class Aircraft:
                   'last_pos_t', 'TRACK_MAX_POINTS'):
             d.pop(k, None)
         # Country + operator zenginlestir (cheap lookup)
-        from . import db
+        from . import db, analytics
         db.enrich(d)
+        analytics.enrich_aircraft(d, self.track)
         return d
