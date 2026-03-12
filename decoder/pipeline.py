@@ -214,6 +214,9 @@ class Decoder:
         tc = modes.get_tc(f.me)
         if 1 <= tc <= 4:
             ident = adsb.decode_identification(f.me)
+            # Pattern hafizasina ekle (gelecekte tamamlama icin)
+            from aircraft import analytics
+            analytics.remember_callsign(f.icao, ident.callsign)
             self.tracker.update(
                 f.icao,
                 callsign=ident.callsign,
