@@ -13,7 +13,8 @@ let tileLayer = L.tileLayer(TILES.dark, { maxZoom: 18 }).addTo(map);
 const markers = {};
 const trails = {};
 const kalman = {};
-const predictionLines = {};  // ICAO -> prediction polyline
+const predictionLines = {};
+const alertedICAOs = new Set();  // bir kez uyarilanlar
 let selected = null;
 let allAircraft = [];
 let lastStats = {};
@@ -76,8 +77,10 @@ function planeSvg(category) {
 
 function planeIcon(ac, sel) {
   const h = ac.heading || 0;
-  const cls = 'plane-marker' + (sel ? ' selected' : '')
+  let cls = 'plane-marker' + (sel ? ' selected' : '')
     + (ac.on_ground ? ' surface' : '');
+  if (ac.emergency) cls += ' emergency';
+  else if (ac.notable && ac.notable.category === 'vip') cls += ' vip';
   const color = altColor(ac.altitude);
   const svg = planeSvg(ac.category);
   // Inline color by replacing class style
@@ -521,8 +524,46 @@ function refresh() {
   if (selected) renderDetail(allAircraft.find(a => a.icao === selected));
 }
 
+// Beep oynatici (Web Audio API)
+function beep(freq=880, ms=200) {
+  try {
+    const ctx = window._actx || (window._actx = new (window.AudioContext||window.webkitAudioContext)());
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.frequency.value = freq; o.type = 'sine';
+    g.gain.value = 0.15; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + ms/1000);
+  } catch (e) {}
+}
+
+// Browser notification helper
+function notify(title, body) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/static/airports.json' });
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission();
+  }
+}
+
+function checkAlerts(aircraft) {
+  for (const ac of aircraft) {
+    if (alertedICAOs.has(ac.icao)) continue;
+    if (ac.emergency) {
+      alertedICAOs.add(ac.icao);
+      beep(440, 400); setTimeout(() => beep(880, 400), 500);
+      notify(`🚨 ${ac.emergency.label} - ${ac.callsign || ac.icao}`,
+             `Squawk ${ac.emergency.squawk}. Position: ${ac.lat?.toFixed(2)}, ${ac.lon?.toFixed(2)}`);
+    } else if (ac.notable && ac.notable.category === 'vip') {
+      alertedICAOs.add(ac.icao);
+      beep(660, 200);
+      notify(`✈ ${ac.notable.label}`, `${ac.callsign || ac.icao}`);
+    }
+  }
+}
+
 socket.on('aircraft_update', data => {
   allAircraft = data.aircraft || [];
+  checkAlerts(allAircraft);
   lastStats = data.stats || {};
   document.getElementById('ac-count').innerText = allAircraft.length;
   document.getElementById('msg-count').innerText = lastStats.df17_decoded || 0;

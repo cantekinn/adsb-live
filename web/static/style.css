@@ -131,6 +131,17 @@ td.flag { font-size: 14px; padding: 4px 4px; }
 .plane-marker.selected { transform: scale(1.5); z-index: 1000; }
 .plane-marker.selected .body { fill: var(--accent-warn) !important; }
 .plane-marker.surface { transform: scale(0.7); }
+.plane-marker.emergency {
+  animation: emerg-pulse 1s infinite;
+  filter: drop-shadow(0 0 8px #ef4444) drop-shadow(0 0 4px #ef4444);
+}
+@keyframes emerg-pulse {
+  0%, 100% { transform: scale(1.2); }
+  50% { transform: scale(1.5); }
+}
+.plane-marker.emergency .body { fill: #ef4444 !important; }
+.plane-marker.vip { filter: drop-shadow(0 0 6px #fbbf24); }
+.plane-marker.vip .body { fill: #fbbf24 !important; }
 
 /* TYPE VARYANTLARI */
 .plane-marker.heli .body { /* svg path overlay */ }
