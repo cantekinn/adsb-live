@@ -103,20 +103,39 @@ function flagEmoji(cc) {
 
 // ---------- AIRPORTS ----------
 const airportLayer = L.layerGroup().addTo(map);
-function airportIcon(iata) {
+let airportData = [];
+
+function airportIcon(ap) {
+  const isLarge = ap.type === 'l';
+  const size = isLarge ? 12 : 8;
+  const color = isLarge ? '#f5b342' : '#a78bfa';
   return L.divIcon({ className: '',
-    html: `<div class="airport-marker">
-             <div class="dot"></div><div class="iata">${iata}</div></div>`,
-    iconSize: [14, 14], iconAnchor: [7, 7] });
+    html: `<div class="airport-marker" style="width:${size}px;height:${size}px">
+             <div class="dot" style="width:${size-3}px;height:${size-3}px;background:${color}"></div>
+             ${isLarge && ap.iata ? `<div class="iata" style="color:${color}">${ap.iata}</div>` : ''}
+           </div>`,
+    iconSize: [size, size], iconAnchor: [size/2, size/2] });
 }
-fetch('/static/airports.json').then(r => r.json()).then(list => {
-  for (const ap of list) {
-    const m = L.marker([ap.lat, ap.lon], { icon: airportIcon(ap.iata) })
-      .addTo(airportLayer);
-    m.bindTooltip(`<b>${ap.iata}</b> · ${ap.icao}<br>${ap.name}`,
+
+function renderAirports() {
+  airportLayer.clearLayers();
+  const z = map.getZoom();
+  for (const ap of airportData) {
+    // Zoom-bazli gizleme
+    if (ap.type === 'l' && z < 4) continue;        // buyukler z>=4
+    if (ap.type === 'm' && z < 7) continue;        // ortalar z>=7
+    const m = L.marker([ap.lat, ap.lon], { icon: airportIcon(ap) }).addTo(airportLayer);
+    m.bindTooltip(`<b>${ap.iata || ap.icao}</b><br>${ap.name}<br>${ap.country}`,
       { direction: 'top', offset: [0, -8] });
   }
+}
+
+fetch('/static/airports.json').then(r => r.json()).then(list => {
+  airportData = list;
+  renderAirports();
 });
+
+map.on('zoomend', renderAirports);
 
 // ---------- FILTRELEME ----------
 function passFilter(ac) {
