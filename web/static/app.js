@@ -127,6 +127,7 @@ function renderAirports() {
     const m = L.marker([ap.lat, ap.lon], { icon: airportIcon(ap) }).addTo(airportLayer);
     m.bindTooltip(`<b>${ap.iata || ap.icao}</b><br>${ap.name}<br>${ap.country}`,
       { direction: 'top', offset: [0, -8] });
+    m.on('click', () => showMetar(ap));
   }
 }
 
@@ -677,3 +678,26 @@ function updateTerminator() {
 }
 updateTerminator();
 setInterval(updateTerminator, 5 * 60 * 1000);
+
+// ========== METAR popup ==========
+function showMetar(ap) {
+  const icao = ap.icao;
+  fetch(`/api/metar/${icao}`).then(r => r.json()).then(data => {
+    let html = `<div style="min-width:280px"><b>${ap.iata || icao}</b> · ${ap.name}<br><br>`;
+    if (data.metar?.raw) {
+      html += `<div style="font-family:Consolas;font-size:11px;color:#4cc9f0">${data.metar.raw}</div><br>`;
+      if (data.metar.temp_c != null)
+        html += `🌡 ${data.metar.temp_c}°C  `;
+      if (data.metar.wind_dir != null && data.metar.wind_kt != null)
+        html += `💨 ${data.metar.wind_dir}°/${data.metar.wind_kt}kt  `;
+      if (data.metar.visib != null)
+        html += `👁 ${data.metar.visib}sm`;
+      html += '<br>';
+    } else { html += '<i>METAR yok</i><br>'; }
+    if (data.taf?.raw) {
+      html += `<br><small>TAF:</small><div style="font-family:Consolas;font-size:10px;color:#a78bfa;white-space:pre-wrap">${data.taf.raw}</div>`;
+    }
+    html += '</div>';
+    L.popup({ maxWidth: 360 }).setLatLng([ap.lat, ap.lon]).setContent(html).openOn(map);
+  });
+}

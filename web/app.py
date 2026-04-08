@@ -66,6 +66,15 @@ def create_app(tracker: AircraftTracker, stats: dict | None = None,
         with open(app.static_folder + '/airports.json', 'r') as f:
             return app.response_class(f.read(), mimetype='application/json')
 
+    @app.route('/api/metar/<icao>')
+    def api_metar(icao):
+        from web.metar import get_metar, get_taf
+        return jsonify({
+            'icao': icao.upper(),
+            'metar': get_metar(icao),
+            'taf': get_taf(icao),
+        })
+
     def _emit_loop():
         while True:
             socketio.emit('aircraft_update', {
