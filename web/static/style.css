@@ -250,6 +250,9 @@ td.flag { font-size: 14px; padding: 4px 4px; }
 .field .val { font-size: 13px; color: var(--text); font-family: 'Consolas', monospace; }
 .field .val .unit { color: var(--text-faint); font-size: 10px; margin-left: 3px; }
 .field .val.muted { color: var(--text-faint); }
+.photo-section { margin: 10px 0; }
+.photo-section img { width: 100%; border-radius: 6px; }
+.photo-credit { font-size: 9px; color: var(--text-faint); margin-top: 3px; }
 .commb-section { margin-top: 10px; }
 .commb-section summary { cursor: pointer; font-size: 11px;
   color: var(--text-dim); padding: 6px 0; }

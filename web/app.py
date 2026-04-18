@@ -75,6 +75,12 @@ def create_app(tracker: AircraftTracker, stats: dict | None = None,
             'taf': get_taf(icao),
         })
 
+    @app.route('/api/photo/<icao>')
+    def api_photo(icao):
+        from web.photo import get_photo
+        photo = get_photo(icao)
+        return jsonify(photo or {})
+
     def _emit_loop():
         while True:
             socketio.emit('aircraft_update', {

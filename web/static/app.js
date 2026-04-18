@@ -337,9 +337,24 @@ const CATEGORIES = {
   1: 'Light', 2: 'Small', 3: 'Large', 4: 'High-Vortex',
   5: 'Heavy', 6: 'High-Performance', 7: 'Rotorcraft'
 };
+function loadPhoto(icao) {
+  const wrap = document.getElementById('d-photo-wrap');
+  const img = document.getElementById('d-photo');
+  const credit = document.getElementById('d-photo-credit');
+  wrap.style.display = 'none';
+  fetch(`/api/photo/${icao}`).then(r => r.json()).then(p => {
+    if (!p.thumbnail) return;
+    img.src = p.thumbnail;
+    img.onclick = () => window.open(p.link, '_blank');
+    credit.innerHTML = `${p.aircraft || ''} ${p.registration ? '· ' + p.registration : ''} ${p.photographer ? '· © ' + p.photographer : ''}`;
+    wrap.style.display = 'block';
+  });
+}
+
 function renderDetail(ac) {
   const panel = document.getElementById('detail');
   if (!ac) { panel.classList.remove('open'); return; }
+  loadPhoto(ac.icao);
   document.getElementById('d-cs').textContent = ac.callsign || ac.icao;
   document.getElementById('d-icao').textContent = ac.icao;
   document.getElementById('d-flag').textContent = flagEmoji(ac.country_code);
