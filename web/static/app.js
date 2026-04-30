@@ -694,6 +694,94 @@ function updateTerminator() {
 updateTerminator();
 setInterval(updateTerminator, 5 * 60 * 1000);
 
+// ========== DECODING MIKROSKOBU ==========
+document.getElementById('micro-btn').onclick = () => {
+  document.getElementById('micro-modal').classList.add('open');
+};
+document.getElementById('micro-close').onclick = () => {
+  document.getElementById('micro-modal').classList.remove('open');
+};
+document.getElementById('micro-decode').onclick = doMicroDecode;
+document.getElementById('micro-hex').onkeydown = (e) => {
+  if (e.key === 'Enter') doMicroDecode();
+};
+
+function bitsHTML(bits, ranges) {
+  // ranges = [{start, len, label, color}]
+  let out = '';
+  let lastEnd = 0;
+  ranges.forEach(r => {
+    if (lastEnd < r.start) out += `<span>${bits.slice(lastEnd, r.start)}</span>`;
+    out += `<span style="color:${r.color || 'var(--accent-warn)'};font-weight:700"
+      title="${r.label}">${bits.slice(r.start, r.start + r.len)}</span>`;
+    lastEnd = r.start + r.len;
+  });
+  if (lastEnd < bits.length) out += `<span>${bits.slice(lastEnd)}</span>`;
+  return out;
+}
+
+function doMicroDecode() {
+  const hex = document.getElementById('micro-hex').value.trim().replace(/\s+/g, '');
+  fetch(`/api/decode/${hex}`).then(r => r.json()).then(d => {
+    const out = document.getElementById('micro-output');
+    if (d.error) { out.innerHTML = `<div class="micro-step bad">Hata: ${d.error}</div>`; return; }
+    let html = '';
+    // 1. Raw hex + bits
+    html += `<div class="micro-step">
+      <h4>1. Raw bits (${d.bytes * 8} bit)</h4>
+      <div class="bits">${bitsHTML(d.bits, [
+        {start:0, len:5, label:`DF=${d.df}`, color:'#4cc9f0'},
+        ...(d.bytes===14 ? [
+          {start:5, len:3, label:`CA=${d.ca}`, color:'#a78bfa'},
+          {start:8, len:24, label:`ICAO=${d.icao}`, color:'#10b981'},
+          {start:32, len:56, label:`ME (payload)`, color:'#f59e0b'},
+          {start:88, len:24, label:`CRC=${d.pi}`, color:'#ef4444'}
+        ] : [])
+      ])}</div>
+    </div>`;
+    // 2. DF
+    html += `<div class="micro-step">
+      <h4>2. Downlink Format</h4>
+      <div>DF = <b>${d.df}</b> (${d.df_name})</div>
+    </div>`;
+    if (d.bytes === 14) {
+      // 3. CA + ICAO
+      html += `<div class="micro-step">
+        <h4>3. Capability + ICAO Address</h4>
+        <div>CA = ${d.ca} · ICAO 24-bit = <b style="font-family:Consolas">${d.icao}</b></div>
+      </div>`;
+      // 4. ME
+      html += `<div class="micro-step">
+        <h4>4. ME (Message Extended)</h4>
+        <div class="bits">${d.me_hex}</div>
+        ${d.tc !== undefined ? `<div>TC = <b>${d.tc}</b></div>` : ''}
+      </div>`;
+      // 5. CRC
+      html += `<div class="micro-step">
+        <h4>5. CRC-24 (poly 0x1FFF409)</h4>
+        <div>Computed CRC residue: <span class="${d.crc_ok?'ok':'bad'}">${d.crc}</span>
+        ${d.crc_ok ? ' ✓ VALID' : ' ✗ ICAO XOR (Comm-B) veya hata'}</div>
+      </div>`;
+      // 6. Anlam (TC bazli)
+      if (d.ident) {
+        html += `<div class="micro-step"><h4>6. ADS-B Identification (TC 1-4)</h4>
+          <div>Callsign: <b>${d.ident.callsign}</b> · Category: ${d.ident.category}</div></div>`;
+      } else if (d.airborne_pos) {
+        html += `<div class="micro-step"><h4>6. Airborne Position</h4>
+          <div>F=${d.airborne_pos.f} (${d.airborne_pos.f?'odd':'even'}) ·
+          lat_cpr=${d.airborne_pos.lat_cpr} · lon_cpr=${d.airborne_pos.lon_cpr} ·
+          altitude=${d.airborne_pos.altitude} ft</div></div>`;
+      } else if (d.velocity) {
+        html += `<div class="micro-step"><h4>6. Velocity (TC 19)</h4>
+          <div>${d.velocity.type} ${d.velocity.speed?.toFixed(0)} kt ·
+          heading ${d.velocity.heading?.toFixed(0)}° ·
+          v/r ${d.velocity.vertical_rate} ft/min</div></div>`;
+      }
+    }
+    out.innerHTML = html;
+  });
+}
+
 // ========== METAR popup ==========
 function showMetar(ap) {
   const icao = ap.icao;

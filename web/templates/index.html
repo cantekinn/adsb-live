@@ -30,9 +30,24 @@
       <button class="icon-btn" id="filter-btn" title="Filtre">⚙</button>
       <button class="icon-btn" id="heatmap-btn" title="Heatmap modu">☵</button>
       <button class="icon-btn" id="dash-btn" title="Dashboard">▤</button>
+      <button class="icon-btn" id="micro-btn" title="Decoding mikroskobu">🔬</button>
       <button class="icon-btn" id="theme-btn" title="Tema">◐</button>
     </div>
   </header>
+
+  <!-- DECODING MIKROSKOBU MODAL -->
+  <div id="micro-modal" class="modal-backdrop">
+    <div class="modal">
+      <button class="close" id="micro-close">✕</button>
+      <h3>Mode-S Decoding Mikroskobu</h3>
+      <div class="micro-input">
+        <label>14-byte hex mesaj (28 karakter):</label>
+        <input type="text" id="micro-hex" placeholder="8D4840D6202CC371C32CE0576098" value="8D4840D6202CC371C32CE0576098">
+        <button class="btn primary" id="micro-decode">Decode</button>
+      </div>
+      <div class="micro-steps" id="micro-output"></div>
+    </div>
+  </div>
 
   <!-- HARITA -->
   <div id="map"></div>
