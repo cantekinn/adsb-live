@@ -27,14 +27,62 @@
       <div class="bar"><div class="fill" id="progress-fill"></div></div>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" id="filter-btn" title="Filtre">⚙</button>
-      <button class="icon-btn" id="heatmap-btn" title="Heatmap modu">☵</button>
-      <button class="icon-btn" id="dash-btn" title="Dashboard">▤</button>
-      <button class="icon-btn" id="micro-btn" title="Decoding mikroskobu">🔬</button>
+      <button class="icon-btn" id="filter-btn" title="Filtre (F)">⛶</button>
+      <button class="icon-btn" id="heatmap-btn" title="Heatmap (H)">☵</button>
+      <button class="icon-btn" id="dash-btn" title="Dashboard (D)">▤</button>
+      <button class="icon-btn" id="micro-btn" title="Decoding mikroskobu (M)">🔬</button>
+      <button class="icon-btn" id="settings-btn" title="Ayarlar (S)">⚙</button>
       <a class="icon-btn" href="/globe" title="3D Globe" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">🌍</a>
       <button class="icon-btn" id="theme-btn" title="Tema">◐</button>
     </div>
   </header>
+
+  <!-- SETTINGS PANEL -->
+  <div id="settings-panel" class="floating-panel">
+    <button class="close" data-close="settings-panel">✕</button>
+    <h3>Ayarlar</h3>
+    <div class="filter-group">
+      <label><input type="checkbox" id="set-sound" checked> Ses uyarilari (emergency/VIP)</label>
+      <label><input type="checkbox" id="set-notif" checked> Browser bildirimleri</label>
+      <label><input type="checkbox" id="set-anim" checked> Marker animasyonu (Kalman)</label>
+      <label><input type="checkbox" id="set-minimap" checked> Mini-harita</label>
+    </div>
+    <div class="filter-group">
+      <label>Marker boyutu: <span id="marker-size-val">30</span> px</label>
+      <input type="range" id="marker-size" min="16" max="48" step="2" value="30">
+    </div>
+    <div class="filter-group">
+      <label>Heatmap opacity: <span id="heat-opacity-val">80</span>%</label>
+      <input type="range" id="heat-opacity" min="20" max="100" step="5" value="80">
+    </div>
+    <h4>Klavye kisayollari</h4>
+    <div class="kbd-list">
+      <div><kbd>F</kbd> Filtre</div>
+      <div><kbd>H</kbd> Heatmap</div>
+      <div><kbd>D</kbd> Dashboard</div>
+      <div><kbd>M</kbd> Mikroskop</div>
+      <div><kbd>T</kbd> Tema</div>
+      <div><kbd>S</kbd> Ayarlar</div>
+      <div><kbd>3</kbd> 3D Globe</div>
+      <div><kbd>ESC</kbd> Tum panelleri kapat</div>
+      <div><kbd>/</kbd> Arama focus</div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING TOUR -->
+  <div id="tour-backdrop" class="tour-backdrop"></div>
+  <div id="tour-bubble" class="tour-bubble">
+    <div class="tour-title" id="tour-title"></div>
+    <div class="tour-text" id="tour-text"></div>
+    <div class="tour-nav">
+      <button class="btn" id="tour-skip">Atla</button>
+      <button class="btn primary" id="tour-next">Sonraki</button>
+    </div>
+    <div class="tour-progress" id="tour-progress"></div>
+  </div>
+
+  <!-- MINI-MAP -->
+  <div id="minimap"></div>
 
   <!-- DECODING MIKROSKOBU MODAL -->
   <div id="micro-modal" class="modal-backdrop">

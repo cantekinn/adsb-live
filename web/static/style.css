@@ -121,7 +121,8 @@ td.flag { font-size: 14px; padding: 4px 4px; }
 
 /* ========== PLANE MARKER ========== */
 .plane-marker {
-  width: 30px; height: 30px; pointer-events: auto; cursor: pointer;
+  width: var(--marker-size, 30px); height: var(--marker-size, 30px);
+  pointer-events: auto; cursor: pointer;
   transition: transform 0.3s ease-out;
 }
 .plane-marker svg { width: 100%; height: 100%; display: block;
@@ -320,6 +321,72 @@ td.flag { font-size: 14px; padding: 4px 4px; }
   border: 1px solid var(--border); border-radius: 100px;
 }
 
+/* ========== KEYBOARD SHORTCUT LIST ========== */
+.kbd-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  font-size: 11px; color: var(--text-dim); }
+.kbd-list kbd {
+  display: inline-block; padding: 2px 7px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 3px;
+  font-family: Consolas, monospace; font-size: 10px;
+  color: var(--accent); min-width: 20px; text-align: center;
+  margin-right: 6px;
+}
+
+/* ========== ONBOARDING TOUR ========== */
+.tour-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 8000; display: none; pointer-events: none;
+}
+.tour-backdrop.active { display: block; pointer-events: auto; }
+.tour-bubble {
+  position: fixed; background: var(--bg-card);
+  border: 2px solid var(--accent); border-radius: 10px;
+  padding: 16px 20px; max-width: 320px; z-index: 8500;
+  display: none; box-shadow: 0 8px 28px var(--shadow);
+  animation: tour-pop 0.3s ease-out;
+}
+.tour-bubble.active { display: block; }
+@keyframes tour-pop {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.tour-title { font-size: 14px; color: var(--accent);
+  font-weight: 700; margin-bottom: 6px; }
+.tour-text { font-size: 12px; color: var(--text); line-height: 1.5;
+  margin-bottom: 12px; }
+.tour-nav { display: flex; gap: 8px; justify-content: space-between; }
+.tour-progress { font-size: 10px; color: var(--text-faint);
+  text-align: center; margin-top: 8px; }
+
+/* ========== MINI-MAP ========== */
+#minimap {
+  position: absolute; top: 72px; right: 360px; width: 180px; height: 120px;
+  border: 2px solid var(--border); border-radius: 6px;
+  background: var(--bg); overflow: hidden; z-index: 600;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+#minimap.hidden { display: none; }
+#minimap canvas { display: block; }
+
+/* ========== LOADING SKELETON ========== */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg) 25%,
+    var(--bg-card-hover) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s infinite linear;
+  border-radius: 4px;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.empty-state {
+  padding: 40px 20px; text-align: center; color: var(--text-faint);
+  font-size: 12px;
+}
+.empty-state .icon { font-size: 28px; margin-bottom: 8px; opacity: 0.4; }
+
 /* ========== MOBILE RESPONSIVE ========== */
 @media (max-width: 800px) {
   header { padding: 0 10px; gap: 10px; flex-wrap: wrap; height: auto;
@@ -332,6 +399,6 @@ td.flag { font-size: 14px; padding: 4px 4px; }
   #list { top: auto; right: 0; bottom: 0; width: 100%; height: 40%; }
   #detail, .floating-panel { left: 8px; right: 8px; bottom: 8px;
     width: auto; }
-  .legend, #polar { display: none; }
+  .legend, #polar, #minimap { display: none; }
   .header-actions { margin-left: auto; }
 }

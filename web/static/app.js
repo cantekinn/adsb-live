@@ -197,6 +197,7 @@ function kalmanExtrapolate(icao, now) {
 // Her 250 ms'de marker'lari Kalman ile extrapole et (yumusak hareket)
 setInterval(() => {
   if (heatMode || !allAircraft.length) return;
+  if (!settings.anim) return;
   const now = Date.now() / 1000;
   for (const icao in markers) {
     const pos = kalmanExtrapolate(icao, now);
@@ -326,9 +327,23 @@ function updateList(aircraft) {
       <td class="${hdg !== '' ? 'num' : 'dash'}">${hdg ? hdg + '°' : '--'}</td>
     </tr>`;
   }
+  if (filtered.length === 0) {
+    if (aircraft.length === 0) {
+      html = `<tr><td colspan="6" class="empty-state">
+        <div class="icon">📡</div>
+        Henuz ucak yok. Veri bekleniyor...
+      </td></tr>`;
+    } else {
+      html = `<tr><td colspan="6" class="empty-state">
+        <div class="icon">🔍</div>
+        Filtre sonucu bos. Filtreleri sifirla veya genislet.
+      </td></tr>`;
+    }
+  }
   tbody.innerHTML = html;
   tbody.querySelectorAll('tr').forEach(tr => {
-    tr.onclick = () => selectAircraft(tr.dataset.icao);
+    if (tr.dataset.icao)
+      tr.onclick = () => selectAircraft(tr.dataset.icao);
   });
 }
 
@@ -581,6 +596,7 @@ function refresh() {
 
 // Beep oynatici (Web Audio API)
 function beep(freq=880, ms=200) {
+  if (!settings.sound) return;
   try {
     const ctx = window._actx || (window._actx = new (window.AudioContext||window.webkitAudioContext)());
     const o = ctx.createOscillator(); const g = ctx.createGain();
@@ -592,9 +608,10 @@ function beep(freq=880, ms=200) {
 
 // Browser notification helper
 function notify(title, body) {
+  if (!settings.notif) return;
   if (!('Notification' in window)) return;
   if (Notification.permission === 'granted') {
-    new Notification(title, { body, icon: '/static/airports.json' });
+    new Notification(title, { body });
   } else if (Notification.permission !== 'denied') {
     Notification.requestPermission();
   }
@@ -658,6 +675,168 @@ socket.on('aircraft_update', data => {
 });
 
 drawPolar();
+
+// ========== SETTINGS ==========
+const settings = {
+  sound: true, notif: true, anim: true, minimap: true,
+  markerSize: 30, heatOpacity: 80,
+};
+// Load from localStorage
+try {
+  Object.assign(settings, JSON.parse(localStorage.getItem('adsb-settings') || '{}'));
+} catch (e) {}
+function saveSettings() {
+  localStorage.setItem('adsb-settings', JSON.stringify(settings));
+  // Apply
+  document.documentElement.style.setProperty('--marker-size', settings.markerSize + 'px');
+  window._heatmapOpacity = settings.heatOpacity / 100;
+  document.getElementById('minimap').classList.toggle('hidden', !settings.minimap);
+}
+
+['sound', 'notif', 'anim', 'minimap'].forEach(k => {
+  const el = document.getElementById('set-' + k);
+  if (!el) return;
+  el.checked = settings[k];
+  el.onchange = () => { settings[k] = el.checked; saveSettings(); };
+});
+const ms = document.getElementById('marker-size');
+ms.value = settings.markerSize;
+document.getElementById('marker-size-val').textContent = settings.markerSize;
+ms.oninput = () => {
+  settings.markerSize = parseInt(ms.value);
+  document.getElementById('marker-size-val').textContent = ms.value;
+  saveSettings();
+};
+const ho = document.getElementById('heat-opacity');
+ho.value = settings.heatOpacity;
+document.getElementById('heat-opacity-val').textContent = settings.heatOpacity;
+ho.oninput = () => {
+  settings.heatOpacity = parseInt(ho.value);
+  document.getElementById('heat-opacity-val').textContent = ho.value;
+  saveSettings();
+  if (heatMode) refresh();
+};
+saveSettings();
+
+document.getElementById('settings-btn').onclick = () => togglePanel('settings-panel', 'settings-btn');
+
+// ========== KLAVYE KISAYOLLARI ==========
+document.addEventListener('keydown', (e) => {
+  // Input field icindeysek shortcut'lari atla
+  if (e.target.matches('input, textarea')) return;
+  const k = e.key.toLowerCase();
+  switch (k) {
+    case 'f': togglePanel('filter-panel', 'filter-btn'); break;
+    case 'h':
+      heatMode = !heatMode;
+      document.getElementById('heatmap-btn').classList.toggle('active', heatMode);
+      refresh();
+      break;
+    case 'd': togglePanel('dash-panel', 'dash-btn'); renderDashboard(); break;
+    case 'm': document.getElementById('micro-modal').classList.add('open'); break;
+    case 't': document.getElementById('theme-btn').click(); break;
+    case 's': togglePanel('settings-panel', 'settings-btn'); break;
+    case '3': window.location.href = '/globe'; break;
+    case '/': e.preventDefault(); document.getElementById('search-input').focus(); break;
+    case 'escape':
+      document.querySelectorAll('.floating-panel').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.modal-backdrop').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
+      break;
+  }
+});
+
+// ========== ONBOARDING TOUR ==========
+const TOUR_STEPS = [
+  { sel: '.brand', title: 'Hosgeldin', text: 'ADS-B Live Tracker. Burada gercek zamanli ucak verisi gosterilir.' },
+  { sel: '.stats', title: 'Stat cubugu', text: 'Aktif ucak sayisi, mesaj, callsign, CRC. Anlik gunceller.' },
+  { sel: '#filter-btn', title: 'Filtre', text: 'Altitude, hiz, ulke ile filtreleyebilirsin. F kisayolu.' },
+  { sel: '#heatmap-btn', title: 'Heatmap', text: 'Trafik yogunlugu haritasi. H kisayolu.' },
+  { sel: '#micro-btn', title: 'Mikroskop', text: 'Bir Mode-S hex mesajini adim adim cozer. Egitim icin.' },
+  { sel: '#list', title: 'Liste', text: 'Sag panel: tum ucaklar, bayrak, ICAO, callsign, altitude, hiz, heading. Tikla -> detay.' },
+  { sel: 'header', title: 'Hazirsin', text: 'S = ayarlar, T = tema, ESC = kapat. Iyi seyirler!' },
+];
+let tourIdx = 0;
+function showTourStep(i) {
+  const step = TOUR_STEPS[i];
+  if (!step) return endTour();
+  const target = document.querySelector(step.sel);
+  if (!target) return showTourStep(i + 1);
+  const rect = target.getBoundingClientRect();
+  const bubble = document.getElementById('tour-bubble');
+  document.getElementById('tour-title').textContent = step.title;
+  document.getElementById('tour-text').textContent = step.text;
+  document.getElementById('tour-progress').textContent = `${i + 1} / ${TOUR_STEPS.length}`;
+  bubble.classList.add('active');
+  // Konum: target altinda
+  const top = Math.min(rect.bottom + 8, window.innerHeight - 200);
+  const left = Math.min(rect.left + rect.width / 2 - 160, window.innerWidth - 340);
+  bubble.style.top = Math.max(60, top) + 'px';
+  bubble.style.left = Math.max(8, left) + 'px';
+}
+function endTour() {
+  document.getElementById('tour-backdrop').classList.remove('active');
+  document.getElementById('tour-bubble').classList.remove('active');
+  localStorage.setItem('adsb-tour-done', '1');
+}
+document.getElementById('tour-skip').onclick = endTour;
+document.getElementById('tour-next').onclick = () => {
+  tourIdx++;
+  if (tourIdx >= TOUR_STEPS.length) endTour();
+  else showTourStep(tourIdx);
+};
+if (!localStorage.getItem('adsb-tour-done')) {
+  setTimeout(() => {
+    document.getElementById('tour-backdrop').classList.add('active');
+    showTourStep(0);
+  }, 1500);
+}
+
+// ========== MINI-MAP ==========
+const minimapCanvas = document.createElement('canvas');
+minimapCanvas.width = 180; minimapCanvas.height = 120;
+document.getElementById('minimap').appendChild(minimapCanvas);
+const miniCtx = minimapCanvas.getContext('2d');
+function drawMinimap() {
+  if (!settings.minimap) return;
+  const W = 180, H = 120;
+  miniCtx.fillStyle = '#0a0e14';
+  miniCtx.fillRect(0, 0, W, H);
+  // World grid
+  miniCtx.strokeStyle = '#1f2937';
+  miniCtx.lineWidth = 0.5;
+  for (let x = 0; x < W; x += 30) {
+    miniCtx.beginPath(); miniCtx.moveTo(x, 0); miniCtx.lineTo(x, H); miniCtx.stroke();
+  }
+  for (let y = 0; y < H; y += 20) {
+    miniCtx.beginPath(); miniCtx.moveTo(0, y); miniCtx.lineTo(W, y); miniCtx.stroke();
+  }
+  // Aircraft
+  for (const ac of allAircraft) {
+    if (ac.lat == null) continue;
+    const x = (ac.lon + 180) / 360 * W;
+    const y = (90 - ac.lat) / 180 * H;
+    miniCtx.fillStyle = altColor(ac.altitude);
+    miniCtx.fillRect(x - 1, y - 1, 2, 2);
+  }
+  // Mevcut viewport rectangle
+  const b = map.getBounds();
+  const x1 = (b.getWest() + 180) / 360 * W;
+  const x2 = (b.getEast() + 180) / 360 * W;
+  const y1 = (90 - b.getNorth()) / 180 * H;
+  const y2 = (90 - b.getSouth()) / 180 * H;
+  miniCtx.strokeStyle = '#4cc9f0';
+  miniCtx.lineWidth = 1;
+  miniCtx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+}
+minimapCanvas.onclick = (e) => {
+  const rect = minimapCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const lon = (x / 180) * 360 - 180;
+  const lat = 90 - (y / 120) * 180;
+  map.setView([lat, lon], map.getZoom());
+};
+setInterval(drawMinimap, 1000);
 
 // ========== SOLAR TERMINATOR ==========
 // NOAA Solar Position formulu, basitlestirilmis
