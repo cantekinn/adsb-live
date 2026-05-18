@@ -213,11 +213,31 @@ function updateMarkers(aircraft) {
     for (const icao in trails) {
       map.removeLayer(trails[icao]); delete trails[icao];
     }
-    const points = aircraft.filter(a => a.lat != null && passFilter(a))
-      .map(a => [a.lat, a.lon, Math.min(1, (a.altitude || 5000) / 40000)]);
+    const opacityScale = window._heatmapOpacity || 0.8;
+    // History noktalarini da dahil et (track gecmisi) ve mevcut konumlari
+    const points = [];
+    for (const a of aircraft) {
+      if (!passFilter(a)) continue;
+      if (a.lat != null) points.push([a.lat, a.lon, 1.0]);
+      if (a.track && a.track.length > 0) {
+        for (let i = 0; i < a.track.length; i++) {
+          const age = (a.track.length - i) / a.track.length;
+          points.push([a.track[i][0], a.track[i][1], 1.0 - 0.5 * age]);
+        }
+      }
+    }
     if (heatLayer) map.removeLayer(heatLayer);
-    heatLayer = L.heatLayer(points, { radius: 20, blur: 25, max: 1,
-      gradient: {0.0:'#2563eb', 0.3:'#10b981', 0.6:'#eab308', 1.0:'#ef4444'}
+    heatLayer = L.heatLayer(points, {
+      radius: 24, blur: 18, max: 2.0, minOpacity: 0.4 * opacityScale,
+      gradient: {
+        0.0:'rgba(0,0,150,0.6)',
+        0.2:'#2563eb',
+        0.4:'#06b6d4',
+        0.6:'#10b981',
+        0.75:'#eab308',
+        0.9:'#ea580c',
+        1.0:'#dc2626'
+      }
     }).addTo(map);
     return;
   }
