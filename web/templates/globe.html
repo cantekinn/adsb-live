@@ -66,18 +66,10 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    // Cesium ION token bypass - CartoDB dark tiles (free, CORS OK)
-    // ION token gerekmedigi icin default Cesium provider'i kapat
+    // Cesium ION token YOK - default Bing'i kapat
     Cesium.Ion.defaultAccessToken = '';
     const viewer = new Cesium.Viewer('cesiumContainer', {
-      baseLayer: Cesium.ImageryLayer.fromProviderAsync(
-        Promise.resolve(new Cesium.UrlTemplateImageryProvider({
-          url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-          subdomains: 'abcd',
-          credit: 'CARTO / OSM',
-          maximumLevel: 18,
-        }))
-      ),
+      baseLayer: false,
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -90,6 +82,16 @@
       selectionIndicator: false,
       shouldAnimate: true,
     });
+
+    // Imagery layer - CartoDB dark (CORS OK, anon)
+    viewer.imageryLayers.addImageryProvider(
+      new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        subdomains: 'abcd',
+        credit: 'CARTO / OSM',
+        maximumLevel: 18,
+      })
+    );
 
     // Kamera baslangic Turkiye
     viewer.camera.setView({
