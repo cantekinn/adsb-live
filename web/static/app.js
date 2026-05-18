@@ -652,24 +652,20 @@ function sunPosition(date) {
   return { lat: decl, lon: solarLon };
 }
 
-function terminatorPolygon(date, points=180) {
+// Her boylam icin, gunes yatay noktada (zenith=90) olan enlem.
+// tan(lat) = -cos(HA) / tan(decl), HA = lon - sun.lon
+function terminatorPolygon(date) {
   const sun = sunPosition(date);
-  const antiLat = -sun.lat;
-  const antiLon = sun.lon + 180;
   const rad = Math.PI / 180;
-  const polyPts = [];
-  for (let i = 0; i <= points; i++) {
-    const ang = (i / points) * 2 * Math.PI;
-    const offsetLat = 90 * Math.cos(ang);
-    const offsetLon = 90 * Math.sin(ang) / Math.max(0.01, Math.cos(rad*offsetLat));
-    let lat = antiLat + offsetLat;
-    let lon = antiLon + offsetLon;
-    if (lat > 90) lat = 90; if (lat < -90) lat = -90;
-    while (lon > 180) lon -= 360;
-    while (lon < -180) lon += 360;
-    polyPts.push([lat, lon]);
+  const declRad = sun.lat * rad;
+  if (Math.abs(sun.lat) < 0.1) return [];   // ekvinoks - degerlerle hatali
+  const pts = [];
+  for (let lon = -180; lon <= 180; lon += 2) {
+    const ha = (lon - sun.lon) * rad;
+    const lat = Math.atan2(-Math.cos(ha), Math.tan(declRad)) / rad;
+    pts.push([lat, lon]);
   }
-  return polyPts;
+  return pts;
 }
 
 let terminatorLayer = null, sunMarker = null;
