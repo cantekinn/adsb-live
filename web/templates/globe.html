@@ -31,6 +31,42 @@
       border: 1px solid #1f2937; border-radius: 8px; padding: 14px;
       color: #e0e6ed; font-size: 13px; display: none; z-index: 800;
     }
+    /* Kontrol butonlari */
+    #controls {
+      position: absolute; top: 64px; right: 16px; z-index: 700;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    #controls button {
+      width: 40px; height: 40px;
+      background: rgba(14,20,32,0.92); backdrop-filter: blur(8px);
+      border: 1px solid #1f2937; border-radius: 6px;
+      color: #4cc9f0; cursor: pointer; font-size: 18px;
+      transition: all 0.15s;
+    }
+    #controls button:hover {
+      background: rgba(76,201,240,0.2);
+      transform: scale(1.05);
+    }
+    /* Yardim paneli */
+    #help-panel {
+      position: absolute; bottom: 16px; right: 16px; z-index: 700;
+      background: rgba(14,20,32,0.92); backdrop-filter: blur(8px);
+      border: 1px solid #1f2937; border-radius: 6px;
+      padding: 10px 14px; font-size: 11px; color: #94a3b8;
+      max-width: 240px; display: none;
+    }
+    #help-panel.open { display: block; }
+    #help-panel h4 { font-size: 11px; color: #4cc9f0;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 0 0 6px; }
+    #help-panel .row { margin: 3px 0; }
+    #help-panel kbd {
+      display: inline-block; padding: 1px 5px;
+      background: #0a0e14; border: 1px solid #4cc9f0;
+      border-radius: 3px; font-family: Consolas, monospace;
+      font-size: 10px; color: #4cc9f0; min-width: 50px;
+      text-align: center;
+    }
     #ac-info.open { display: block; }
     #ac-info .cs { font-size: 18px; color: #4cc9f0; font-weight: 700; }
     #ac-info .icao { font-size: 10px; color: #64748b;
@@ -53,6 +89,30 @@
   </header>
 
   <div id="cesiumContainer"></div>
+
+  <!-- KONTROL BUTONLARI -->
+  <div id="controls">
+    <button id="zoom-in" title="Yaklas (+)">＋</button>
+    <button id="zoom-out" title="Uzaklas (-)">－</button>
+    <button id="home" title="Anavatan (Turkiye)">🏠</button>
+    <button id="north" title="Kuzeyi yukari al (N)">⇧</button>
+    <button id="tilt" title="2D / 3D goruntu degistir (V)">⟳</button>
+    <button id="help-btn" title="Yardim (?)">?</button>
+  </div>
+
+  <!-- YARDIM PANELI -->
+  <div id="help-panel">
+    <h4>Kontroller</h4>
+    <div class="row"><kbd>SOL+SURUKLE</kbd> Pan</div>
+    <div class="row"><kbd>SAG+SURUKLE</kbd> Egim/donme</div>
+    <div class="row"><kbd>TEKER</kbd> Yaklas/uzaklas</div>
+    <div class="row"><kbd>W A S D</kbd> Klavye ile uc</div>
+    <div class="row"><kbd>+/-</kbd> Zoom</div>
+    <div class="row"><kbd>N</kbd> Kuzeyi yukari</div>
+    <div class="row"><kbd>H</kbd> Anavatan</div>
+    <div class="row"><kbd>V</kbd> 2D/3D</div>
+    <div class="row"><kbd>?</kbd> Bu paneli ac/kapat</div>
+  </div>
 
   <div id="ac-info">
     <div class="cs" id="i-cs">--</div>
@@ -114,6 +174,80 @@
     // Atmosfer + lighting
     viewer.scene.globe.enableLighting = true;
     viewer.scene.skyAtmosphere.show = true;
+
+    // Kamera kontrolu daha hassas
+    const controller = viewer.scene.screenSpaceCameraController;
+    controller.minimumZoomDistance = 1000;       // 1 km
+    controller.maximumZoomDistance = 50_000_000; // 50000 km
+    controller.inertiaSpin = 0.7;
+    controller.inertiaTranslate = 0.7;
+    controller.inertiaZoom = 0.7;
+    controller.enableTilt = true;
+    controller.enableLook = true;
+
+    // ===== KONTROL BUTONLARI =====
+    const HOME_POSITION = Cesium.Cartesian3.fromDegrees(35, 39, 8_000_000);
+
+    function flyHome() {
+      viewer.camera.flyTo({
+        destination: HOME_POSITION,
+        orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+        duration: 1.5,
+      });
+    }
+    function zoomBy(factor) {
+      const distance = Cesium.Cartesian3.distance(
+        viewer.camera.positionWC, viewer.scene.globe.ellipsoid.cartesianToCartographic(viewer.camera.positionWC) ? viewer.scene.globe.ellipsoid.cartographicToCartesian(viewer.scene.globe.ellipsoid.cartesianToCartographic(viewer.camera.positionWC)) : viewer.camera.positionWC
+      ) || 1_000_000;
+      viewer.camera.zoomIn(distance * factor);
+    }
+    function lookNorth() {
+      viewer.camera.flyTo({
+        destination: viewer.camera.position,
+        orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 },
+        duration: 0.8,
+      });
+    }
+    function toggle2D3D() {
+      const m = viewer.scene.mode;
+      viewer.scene.morphTo2D(0); // basit
+      if (m !== Cesium.SceneMode.SCENE2D) viewer.scene.morphTo2D(1.5);
+      else viewer.scene.morphTo3D(1.5);
+    }
+
+    document.getElementById('zoom-in').onclick = () => viewer.camera.zoomIn(viewer.camera.positionCartographic.height * 0.3);
+    document.getElementById('zoom-out').onclick = () => viewer.camera.zoomOut(viewer.camera.positionCartographic.height * 0.4);
+    document.getElementById('home').onclick = flyHome;
+    document.getElementById('north').onclick = lookNorth;
+    document.getElementById('tilt').onclick = toggle2D3D;
+    document.getElementById('help-btn').onclick = () => {
+      document.getElementById('help-panel').classList.toggle('open');
+    };
+
+    // ===== KLAVYE =====
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea')) return;
+      const camera = viewer.camera;
+      const h = camera.positionCartographic.height;
+      const moveAmt = h * 0.1;
+      const rotateAmt = Cesium.Math.PI / 30;
+      switch(e.key.toLowerCase()) {
+        case 'w': camera.moveForward(moveAmt); e.preventDefault(); break;
+        case 's': camera.moveBackward(moveAmt); e.preventDefault(); break;
+        case 'a': camera.moveLeft(moveAmt); e.preventDefault(); break;
+        case 'd': camera.moveRight(moveAmt); e.preventDefault(); break;
+        case 'q': camera.twistLeft(rotateAmt); e.preventDefault(); break;
+        case 'e': camera.twistRight(rotateAmt); e.preventDefault(); break;
+        case '+': case '=': camera.zoomIn(h * 0.3); e.preventDefault(); break;
+        case '-': case '_': camera.zoomOut(h * 0.4); e.preventDefault(); break;
+        case 'n': lookNorth(); e.preventDefault(); break;
+        case 'h': flyHome(); e.preventDefault(); break;
+        case 'v': toggle2D3D(); e.preventDefault(); break;
+        case '?': case '/':
+          document.getElementById('help-panel').classList.toggle('open');
+          e.preventDefault(); break;
+      }
+    });
 
     // Ucak entityleri
     const entities = {};
