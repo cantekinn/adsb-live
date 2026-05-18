@@ -66,10 +66,18 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    // Cesium ION token YOK - default Bing'i kapat
+    // Ion'u disable et (Bing'e gitmesin)
     Cesium.Ion.defaultAccessToken = '';
+
+    // Imagery provider olustur - ESRI satellite (CORS OK, anon, ucretsiz)
+    const imageryProvider = new Cesium.UrlTemplateImageryProvider({
+      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      credit: 'Esri, Maxar, Earthstar Geographics',
+      maximumLevel: 19,
+    });
+
     const viewer = new Cesium.Viewer('cesiumContainer', {
-      baseLayer: false,
+      baseLayer: new Cesium.ImageryLayer(imageryProvider),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -82,16 +90,6 @@
       selectionIndicator: false,
       shouldAnimate: true,
     });
-
-    // Imagery layer - CartoDB dark (CORS OK, anon)
-    viewer.imageryLayers.addImageryProvider(
-      new Cesium.UrlTemplateImageryProvider({
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-        subdomains: 'abcd',
-        credit: 'CARTO / OSM',
-        maximumLevel: 18,
-      })
-    );
 
     // Kamera baslangic Turkiye
     viewer.camera.setView({
