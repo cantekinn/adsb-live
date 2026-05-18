@@ -24,6 +24,10 @@ def create_app(tracker: AircraftTracker, stats: dict | None = None,
     def index():
         return render_template('index.html')
 
+    @app.route('/globe')
+    def globe():
+        return render_template('globe.html')
+
     # ===== REST API =====
     @app.route('/api/aircraft')
     def api_aircraft():
