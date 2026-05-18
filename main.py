@@ -200,6 +200,13 @@ def main() -> int:
                     help='OpenSky basic auth kullanici adi (opsiyonel, rate up)')
     ap.add_argument('--opensky-pass', default=None,
                     help='OpenSky basic auth sifresi')
+    ap.add_argument('--adsbfi', action='store_true',
+                    help='adsb.fi / airplanes.live / adsb.lol public feed (auth gerekmez)')
+    ap.add_argument('--adsbfi-source', default='airplaneslive',
+                    choices=['adsbfi', 'airplaneslive', 'adsblol'],
+                    help='Aggregator secimi (airplaneslive default, en stabil)')
+    ap.add_argument('--adsbfi-radius', type=int, default=250,
+                    help='Radius (NM, max 250)')
     ap.add_argument('--db', default=None,
                     help='SQLite persistence dosyasi (orn: data/adsb.db)')
     args = ap.parse_args()
@@ -223,7 +230,27 @@ def main() -> int:
         persist = Persistence(args.db, tracker, flush_interval=5.0)
         persist.start()
 
-    if args.opensky:
+    if args.adsbfi:
+        from opensky.adsbfi import AdsbFiFeed
+        if args.ref_lat is None or args.ref_lon is None:
+            log.error('adsb.fi icin --ref-lat ve --ref-lon zorunlu')
+            return 1
+        feed = AdsbFiFeed(tracker, lat=args.ref_lat, lon=args.ref_lon,
+                          radius_nm=args.adsbfi_radius,
+                          source=args.adsbfi_source,
+                          stats=decoder.stats)
+        if _shared_stats is not None:
+            _shared_stats['feed_mode'] = f'adsbfi:{args.adsbfi_source}'
+        feed.start()
+        if args.no_web:
+            try:
+                while True:
+                    time.sleep(5.0)
+                    _print_summary(tracker, decoder)
+            except KeyboardInterrupt:
+                feed.stop()
+                return 0
+    elif args.opensky:
         from opensky.feed import OpenSkyFeed, BBOX_WORLD, BBOX_TR_EU, BBOX_TURKEY, BBOX_UK
         bbox_map = {'world': BBOX_WORLD, 'tr': BBOX_TURKEY,
                     'tr-eu': BBOX_TR_EU, 'uk': BBOX_UK}
@@ -269,7 +296,7 @@ def main() -> int:
             time.sleep(2.0)
             _print_summary(tracker, decoder)
             return 0
-    elif not args.opensky:
+    elif not args.opensky and not args.adsbfi:
         from sdr.rtl_capture import RtlCapture
         capture = RtlCapture(iq_q)
         capture.start()
