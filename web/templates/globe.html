@@ -66,12 +66,18 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    // Cesium ION token gerekmez - default OSM/Bing imagery yerine
-    // OpenStreetMap kullaniyoruz (anon, free)
+    // Cesium ION token bypass - CartoDB dark tiles (free, CORS OK)
+    // ION token gerekmedigi icin default Cesium provider'i kapat
+    Cesium.Ion.defaultAccessToken = '';
     const viewer = new Cesium.Viewer('cesiumContainer', {
-      imageryProvider: new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://tile.openstreetmap.org/'
-      }),
+      baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+        Promise.resolve(new Cesium.UrlTemplateImageryProvider({
+          url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+          subdomains: 'abcd',
+          credit: 'CARTO / OSM',
+          maximumLevel: 18,
+        }))
+      ),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
