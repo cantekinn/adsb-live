@@ -66,18 +66,12 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    // Ion'u disable et (Bing'e gitmesin)
+    window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/';
     Cesium.Ion.defaultAccessToken = '';
 
-    // Imagery provider olustur - ESRI satellite (CORS OK, anon, ucretsiz)
-    const imageryProvider = new Cesium.UrlTemplateImageryProvider({
-      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      credit: 'Esri, Maxar, Earthstar Geographics',
-      maximumLevel: 19,
-    });
-
+    // Viewer'i hicbir imagery olmadan baslat
     const viewer = new Cesium.Viewer('cesiumContainer', {
-      baseLayer: new Cesium.ImageryLayer(imageryProvider),
+      baseLayer: false,
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -90,6 +84,27 @@
       selectionIndicator: false,
       shouldAnimate: true,
     });
+    console.log('[CESIUM] Viewer hazir');
+
+    // Imagery layer ekle - 3 fallback ile
+    function tryAddImagery(url, name, opts={}) {
+      try {
+        const provider = new Cesium.UrlTemplateImageryProvider({
+          url: url, maximumLevel: 18, ...opts,
+        });
+        viewer.imageryLayers.addImageryProvider(provider);
+        console.log('[CESIUM] Imagery yuklendi:', name);
+        return true;
+      } catch (e) {
+        console.error('[CESIUM] Imagery FAIL', name, e);
+        return false;
+      }
+    }
+    // ESRI World Imagery (satellite) en guvenilir
+    tryAddImagery(
+      'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      'ESRI Satellite'
+    );
 
     // Kamera baslangic Turkiye
     viewer.camera.setView({
