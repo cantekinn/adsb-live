@@ -81,6 +81,22 @@ def create_app(tracker: AircraftTracker, stats: dict | None = None,
         photo = get_photo(icao)
         return jsonify(photo or {})
 
+    @app.route('/api/heatmap')
+    def api_heatmap():
+        """SQLite'tan son N dakikalik tum pozisyon noktalari."""
+        if not db_path:
+            return jsonify({'error': 'persistence required'}), 503
+        import sqlite3, time
+        minutes = int(request.args.get('minutes', 60))
+        since = time.time() - minutes * 60
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute("""
+            SELECT lat, lon, altitude, t FROM history
+            WHERE t > ? AND lat IS NOT NULL
+        """, (since,)).fetchall()
+        conn.close()
+        return jsonify({'points': rows, 'minutes': minutes, 'count': len(rows)})
+
     @app.route('/api/decode/<hex_msg>')
     def api_decode(hex_msg):
         """Bir hex mesaji adim adim decode et (egitim icin)."""
