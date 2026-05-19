@@ -26,8 +26,6 @@ py main.py --iq samples/recording.bin --speed 4 --ref-lat 53 --ref-lon -2
 py scripts/generate_synthetic_iq.py --duration 600 --out samples/synthetic.bin
 ```
 
-Tarayıcı: <http://localhost:5000>
-
 ## Özellikler
 
 **Decoder (sıfırdan, pyModeS kullanılmadı)**:
@@ -100,7 +98,7 @@ pytest tests/
 
 ## Notlar
 
-- `pyModeS` **kullanılmadı** — tüm decode kodu sıfırdan yazıldı (BTÜ EEM bitirme projesi pedagojisi)
+- `pyModeS` **kullanılmadı** — tüm decode kodu sıfırdan yazıldı 
 - Referans: ICAO Annex 10 Vol IV, Junzi Sun "1090 MHz Riddle"
 - Önceki sürüm: `github.com/cantekinn/ADSB-Signal-Tracker` (JSON tabanlı, deprecated)
 
